@@ -8,18 +8,42 @@
 using namespace std;
 
 const unsigned int magic = 'OMED';
-
-void Init(const char *path, const HelperFunctions &helperFunctions)
-{
-	CreateDirectory(L"savedata\\input", nullptr);
-}
-
+ControllerData* Controller = nullptr;
 unsigned int currentframe = 0;
 unsigned int savedframe = 0;
 vector<ControllerData> recording;
 bool levelstarted = false;
 bool levelcomplete = false;
 bool isrecording;
+
+extern "C"
+{
+	__declspec(dllexport) void Init(const char *path, const HelperFunctions &helperFunctions)
+	{
+		CreateDirectory(L"savedata\\input", nullptr);
+		Controller = &ControllersRaw[0];
+	}
+
+	__declspec(dllexport) void OnInput()
+	{
+		if (!levelstarted || levelcomplete || !GetCharacterObject(0) || IsGamePaused())
+			return;
+
+		if (isrecording)
+			recording.push_back(*Controller);
+		else
+		{
+			bool pressedA = (Controller->PressedButtons & Buttons_A) == Buttons_A;
+			*Controller = recording[currentframe++];
+			if (pressedA)
+			{
+				isrecording = true;
+				recording.resize(currentframe);
+			}
+		}
+	}
+}
+
 
 void ResetGhost()
 {
@@ -104,36 +128,6 @@ void Restart()
 	currentframe = savedframe;
 }
 
-DataPointer(ControllerData, Controller, 0x3B0E7F0);
-void UpdateController()
-{
-	if (!levelstarted || levelcomplete || !GetCharacterObject(0) || IsGamePaused())
-		return;
-	if (isrecording)
-		recording.push_back(Controller);
-	else
-	{
-		bool pressedA = (Controller.PressedButtons & Buttons_A) == Buttons_A;
-		Controller = recording[currentframe++];
-		if (pressedA)
-		{
-			isrecording = true;
-			recording.resize(currentframe);
-		}
-	}
-}
-
-const int sub_40F170 = 0x40F170;
-__declspec(naked) void ControllerHax()
-{
-	__asm
-	{
-		call UpdateController
-		xor ebx, ebx
-		jmp sub_40F170
-	}
-}
-
 PointerInfo jumps[] = {
 	ptrdecl(0x41597B, LoadGhost),
 	ptrdecl(0x44EEE1, Checkpoint),
@@ -143,7 +137,6 @@ PointerInfo jumps[] = {
 
 PointerInfo calls[] = {
 	ptrdecl(0x415545, SaveGhost),
-	ptrdecl(0x40FEE6, ControllerHax)
 };
 
 extern "C" __declspec(dllexport) ModInfo SADXModInfo = { ModLoaderVer, Init, NULL, 0, arrayptrandlength(jumps), arrayptrandlength(calls) };
