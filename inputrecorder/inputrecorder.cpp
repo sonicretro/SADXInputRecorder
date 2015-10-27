@@ -109,26 +109,26 @@ void LoadGhost()
 
 		char path[MAX_PATH];
 		_snprintf_s(path, MAX_PATH, "savedata\\input\\%02d%s.gst", CurrentLevel, CharIDStrings[CurrentCharacter]);
-		ifstream str(path, ifstream::binary);
+		ifstream file(path, ifstream::binary);
 
-		if (str.is_open())
+		if (file.is_open())
 		{
 			unsigned int m;
-			str.read((char *)&m, sizeof(m));
+			file.read((char *)&m, sizeof(m));
 			if (m == magic)
 			{
 				unsigned int size;
-				str.read((char *)&size, sizeof(size));
+				file.read((char *)&size, sizeof(size));
 				recording.resize(size);
-				str.read((char *)recording.data(), sizeof(ControllerData) * size);
+				file.read((char *)recording.data(), sizeof(ControllerData) * size);
 
-				str.read((char*)&size, sizeof(size));
+				file.read((char*)&size, sizeof(size));
 				analogs.resize(size);
-				str.read((char*)analogs.data(), sizeof(AnalogThing) * size);
+				file.read((char*)analogs.data(), sizeof(AnalogThing) * size);
 
 				isrecording = false;
 			}
-			str.close();
+			file.close();
 		}
 
 		currentframe = 0;
@@ -140,24 +140,24 @@ void __cdecl SaveGhost(unsigned __int8 a1)
 	DisableController(a1);
 	char path[MAX_PATH];
 	_snprintf_s(path, MAX_PATH, "savedata\\input\\%02d%s.gst", CurrentLevel, CharIDStrings[CurrentCharacter]);
-	ofstream str(path, ifstream::binary);
+	ofstream file(path, ifstream::binary);
 
-	if (str.is_open())
+	if (file.is_open())
 	{
 		// Writes DEMO header
-		str.write((char *)&magic, sizeof(magic));
+		file.write((char *)&magic, sizeof(magic));
 
 		// Writes controller data
 		unsigned int size = recording.size();
-		str.write((char *)&size, sizeof(size));
-		str.write((char *)recording.data(), sizeof(ControllerData) * size);
+		file.write((char *)&size, sizeof(size));
+		file.write((char *)recording.data(), sizeof(ControllerData) * size);
 
 		// Writes analog data
 		size = analogs.size();
-		str.write((char*)&size, sizeof(size));
-		str.write((char*)analogs.data(), sizeof(AnalogThing) * size);
+		file.write((char*)&size, sizeof(size));
+		file.write((char*)analogs.data(), sizeof(AnalogThing) * size);
 
-		str.close();
+		file.close();
 	}
 
 	levelcomplete = true;
