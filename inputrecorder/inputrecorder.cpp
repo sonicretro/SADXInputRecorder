@@ -5,16 +5,26 @@
 #include <fstream>
 #include <SADXModLoader.h>
 
+struct AnalogThing
+{
+	int		angle;
+	float	magnitude;
+};
+
+DataArray(AnalogThing, NormalizedAnalogs, 0x03B0E7A0, 8);
+
 using namespace std;
 
 const unsigned int magic = 'OMED';
 ControllerData* Controller = nullptr;
 unsigned int currentframe = 0;
 unsigned int savedframe = 0;
-vector<ControllerData> recording;
 bool levelstarted = false;
 bool levelcomplete = false;
 bool isrecording;
+
+vector<ControllerData> recording;
+vector<AnalogThing> analogs;
 
 extern "C"
 {
@@ -39,20 +49,39 @@ extern "C"
 			{
 				isrecording = true;
 				recording.resize(currentframe);
+				analogs.resize(currentframe);
 			}
 		}
 	}
 }
 
-
-void ResetGhost()
+void OnControl_c()
 {
-	recording.clear();
-	isrecording = false;
-	currentframe = 0;
-	savedframe = 0;
+	if (!levelstarted || levelcomplete || !GetCharacterObject(0) || IsGamePaused())
+		return;
+
+	if (isrecording)
+	{
+		analogs.push_back(NormalizedAnalogs[0]);
+	}
+	else
+	{
+		// CurrentFrame is incremented in OnInput which happens before OnControl.
+		NormalizedAnalogs[0] = analogs[currentframe - 1];
+	}
 }
 
+void __declspec(naked) OnControl_asm()
+{
+	__asm
+	{
+		call OnControl_c
+		ret
+	}
+}
+
+
+#pragma region File I/O
 void LoadGhost()
 {
 	levelcomplete = false;
@@ -76,9 +105,11 @@ void LoadGhost()
 	if (recording.size() == 0)
 	{
 		isrecording = true;
+
 		char path[MAX_PATH];
 		_snprintf_s(path, MAX_PATH, "savedata\\input\\%02d%s.gst", CurrentLevel, CharIDStrings[CurrentCharacter]);
 		ifstream str(path, ifstream::binary);
+
 		if (str.is_open())
 		{
 			unsigned int m;
@@ -89,10 +120,16 @@ void LoadGhost()
 				str.read((char *)&size, sizeof(size));
 				recording.resize(size);
 				str.read((char *)recording.data(), sizeof(ControllerData) * size);
+
+				str.read((char*)&size, sizeof(size));
+				analogs.resize(size);
+				str.read((char*)analogs.data(), sizeof(AnalogThing) * size);
+
 				isrecording = false;
 			}
 			str.close();
 		}
+
 		currentframe = 0;
 	}
 }
@@ -104,16 +141,36 @@ void __cdecl SaveGhost(unsigned __int8 a1)
 	char path[MAX_PATH];
 	_snprintf_s(path, MAX_PATH, "savedata\\input\\%02d%s.gst", CurrentLevel, CharIDStrings[CurrentCharacter]);
 	ofstream str(path, ifstream::binary);
+
 	if (str.is_open())
 	{
+		// Writes DEMO header
 		str.write((char *)&magic, sizeof(magic));
+
+		// Writes controller data
 		unsigned int size = recording.size();
 		str.write((char *)&size, sizeof(size));
 		str.write((char *)recording.data(), sizeof(ControllerData) * size);
+
+		// Writes analog data
+		size = analogs.size();
+		str.write((char*)&size, sizeof(size));
+		str.write((char*)analogs.data(), sizeof(AnalogThing) * size);
+
 		str.close();
 	}
+
 	levelcomplete = true;
 	levelstarted = false;
+}
+#pragma endregion
+
+void ResetGhost()
+{
+	recording.clear();
+	isrecording = false;
+	currentframe = 0;
+	savedframe = 0;
 }
 
 void Checkpoint()
@@ -132,7 +189,8 @@ PointerInfo jumps[] = {
 	ptrdecl(0x41597B, LoadGhost),
 	ptrdecl(0x44EEE1, Checkpoint),
 	ptrdecl(0x44EE67, Restart),
-	ptrdecl(0x44ED60, ResetGhost)
+	ptrdecl(0x44ED60, ResetGhost),
+	ptrdecl(0x40FF00, OnControl_asm)
 };
 
 PointerInfo calls[] = {
