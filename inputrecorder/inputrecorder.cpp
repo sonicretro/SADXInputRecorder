@@ -5,6 +5,8 @@
 #include <fstream>
 #include <SADXModLoader.h>
 
+using namespace std;
+
 struct AnalogThing
 {
 	int		angle;
@@ -12,8 +14,7 @@ struct AnalogThing
 };
 
 DataArray(AnalogThing, NormalizedAnalogs, 0x03B0E7A0, 8);
-
-using namespace std;
+FunctionPointer(void, DisableController, (unsigned __int8), 0x40EFA0);
 
 const unsigned int magic = 'OMED';
 ControllerData* Controller = nullptr;
@@ -134,10 +135,9 @@ void LoadGhost()
 	}
 }
 
-FunctionPointer(void, sub_40EFA0, (unsigned __int8), 0x40EFA0);
 void __cdecl SaveGhost(unsigned __int8 a1)
 {
-	sub_40EFA0(a1);
+	DisableController(a1);
 	char path[MAX_PATH];
 	_snprintf_s(path, MAX_PATH, "savedata\\input\\%02d%s.gst", CurrentLevel, CharIDStrings[CurrentCharacter]);
 	ofstream str(path, ifstream::binary);
