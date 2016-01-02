@@ -1,8 +1,6 @@
 // inputrecorder.cpp : Defines the exported functions for the DLL application.
 //
 
-// TODO: Do not revert recorded frames on death; just continue. Otherwise desyncs ensue.
-
 #include <vector>
 #include <fstream>
 #include <SADXModLoader.h>
@@ -104,7 +102,7 @@ extern "C"
 }
 
 #pragma region File I/O
-void LoadGhost()
+void LoadDemo()
 {
 	levelcomplete = false;
 	switch (CurrentLevel)
@@ -129,7 +127,7 @@ void LoadGhost()
 		isrecording = true;
 
 		char path[MAX_PATH];
-		_snprintf_s(path, MAX_PATH, "savedata\\input\\%02d%s.gst", CurrentLevel, CharIDStrings[CurrentCharacter]);
+		_snprintf_s(path, MAX_PATH, "savedata\\input\\%02d%s.demo", CurrentLevel, CharIDStrings[CurrentCharacter]);
 		ifstream file(path, ifstream::binary);
 
 		if (file.is_open())
@@ -156,7 +154,7 @@ void __cdecl SaveGhost(unsigned __int8 a1)
 {
 	DisableController(a1);
 	char path[MAX_PATH];
-	_snprintf_s(path, MAX_PATH, "savedata\\input\\%02d%s.gst", CurrentLevel, CharIDStrings[CurrentCharacter]);
+	_snprintf_s(path, MAX_PATH, "savedata\\input\\%02d%s.demo", CurrentLevel, CharIDStrings[CurrentCharacter]);
 	ofstream file(path, ifstream::binary);
 
 	if (file.is_open())
@@ -198,9 +196,9 @@ void Restart()
 }
 
 PointerInfo jumps[] = {
-	ptrdecl(0x41597B, LoadGhost),
-	ptrdecl(0x44EEE1, Checkpoint),
-	ptrdecl(0x44EE67, Restart),
+	ptrdecl(0x41597B, LoadDemo),
+	//ptrdecl(0x44EEE1, Checkpoint),
+	//ptrdecl(0x44EE67, Restart),
 	ptrdecl(0x44ED60, ResetGhost)
 };
 
