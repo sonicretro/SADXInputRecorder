@@ -17,7 +17,6 @@ DataArray(AnalogThing, NormalizedAnalogs, 0x03B0E7A0, 8);
 FunctionPointer(void, DisableController, (unsigned __int8), 0x40EFA0);
 
 const unsigned int magic = 'OMED';
-ControllerData* Controller = nullptr;
 unsigned int currentframe = 0;
 unsigned int savedframe = 0;
 bool levelstarted = false;
@@ -32,13 +31,14 @@ extern "C"
 	__declspec(dllexport) void Init(const char *path, const HelperFunctions &helperFunctions)
 	{
 		CreateDirectory(L"savedata\\input", nullptr);
-		Controller = &ControllersRaw[0];
 	}
 
 	__declspec(dllexport) void OnInput()
 	{
 		if (!levelstarted || levelcomplete || !GetCharacterObject(0) || IsGamePaused())
 			return;
+
+		ControllerData* Controller = ControllerPointers[0];
 
 		if (isrecording)
 			recording.push_back(*Controller);
@@ -88,19 +88,19 @@ void LoadGhost()
 	levelcomplete = false;
 	switch (CurrentLevel)
 	{
-	case LevelIDs_HedgehogHammer:
-	case LevelIDs_StationSquare:
-	case LevelIDs_EggCarrierOutside:
-	case LevelIDs_EggCarrierInside:
-	case LevelIDs_MysticRuins:
-	case LevelIDs_Past:
-	case LevelIDs_SkyChase1:
-	case LevelIDs_SkyChase2:
-	case LevelIDs_SSGarden:
-	case LevelIDs_ECGarden:
-	case LevelIDs_MRGarden:
-	case LevelIDs_ChaoRace:
-		return;
+		case LevelIDs_HedgehogHammer:
+		case LevelIDs_StationSquare:
+		case LevelIDs_EggCarrierOutside:
+		case LevelIDs_EggCarrierInside:
+		case LevelIDs_MysticRuins:
+		case LevelIDs_Past:
+		case LevelIDs_SkyChase1:
+		case LevelIDs_SkyChase2:
+		case LevelIDs_SSGarden:
+		case LevelIDs_ECGarden:
+		case LevelIDs_MRGarden:
+		case LevelIDs_ChaoRace:
+			return;
 	}
 	levelstarted = true;
 	if (recording.size() == 0)
