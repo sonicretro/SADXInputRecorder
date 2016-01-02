@@ -1,6 +1,8 @@
 // inputrecorder.cpp : Defines the exported functions for the DLL application.
 //
 
+// TODO: Do not revert recorded frames on death; just continue. Otherwise desyncs ensue.
+
 #include <vector>
 #include <fstream>
 #include <SADXModLoader.h>
@@ -13,18 +15,29 @@ struct AnalogThing
 	float	magnitude;
 };
 
+struct DemoFrame
+{
+	Uint32 duration;
+	ControllerData controller;
+	AnalogThing analogThing;
+};
+
 DataArray(AnalogThing, NormalizedAnalogs, 0x03B0E7A0, 8);
 FunctionPointer(void, DisableController, (unsigned __int8), 0x40EFA0);
 
 const unsigned int magic = 'OMED';
+
 unsigned int currentframe = 0;
 unsigned int savedframe = 0;
+
 bool levelstarted = false;
 bool levelcomplete = false;
 bool isrecording;
 
-vector<ControllerData> recording;
-vector<AnalogThing> analogs;
+Uint32 elapsed = 0;
+Uint32 duration = 0;
+
+vector<DemoFrame> recording;
 
 extern "C"
 {
@@ -38,20 +51,12 @@ extern "C"
 		if (!levelstarted || levelcomplete || !GetCharacterObject(0) || IsGamePaused())
 			return;
 
-		ControllerData* Controller = ControllerPointers[0];
-
-		if (isrecording)
-			recording.push_back(*Controller);
-		else
+		if (!isrecording && (ControllerPointers[0]->PressedButtons & Buttons_A) == Buttons_A)
 		{
-			bool pressedA = (Controller->PressedButtons & Buttons_A) == Buttons_A;
-			*Controller = recording[currentframe++];
-			if (pressedA)
-			{
-				isrecording = true;
-				recording.resize(currentframe);
-				analogs.resize(currentframe);
-			}
+			isrecording = true;
+			recording.resize(currentframe);
+			if (duration > 1)
+				recording.back().duration = elapsed;
 		}
 	}
 }
@@ -63,12 +68,38 @@ void OnControl_c()
 
 	if (isrecording)
 	{
-		analogs.push_back(NormalizedAnalogs[0]);
+		DemoFrame i = { 1, *ControllerPointers[0], NormalizedAnalogs[0] };
+
+		if (!recording.empty())
+		{
+			DemoFrame& last = recording.back();
+			if (!memcmp(&last.controller, &i.controller, sizeof(ControllerData)) && !memcmp(&last.analogThing, &i.analogThing, sizeof(AnalogThing)))
+			{
+				++last.duration;
+				return;
+			}
+		}
+
+		recording.push_back(i);
 	}
 	else
 	{
 		// CurrentFrame is incremented in OnInput which happens before OnControl.
-		NormalizedAnalogs[0] = analogs[currentframe - 1];
+		DemoFrame i = recording[currentframe];
+
+		Controllers[0] = i.controller;
+		NormalizedAnalogs[0] = i.analogThing;
+		duration = i.duration;
+
+		if (++elapsed == duration)
+		{
+			++currentframe;
+			elapsed = 0;
+		}
+		else
+		{
+			PrintDebug("Repeat frame for %5u: %5u/%5u\n", currentframe, elapsed, duration);
+		}
 	}
 }
 
@@ -120,11 +151,7 @@ void LoadGhost()
 				unsigned int size;
 				file.read((char *)&size, sizeof(size));
 				recording.resize(size);
-				file.read((char *)recording.data(), sizeof(ControllerData) * size);
-
-				file.read((char*)&size, sizeof(size));
-				analogs.resize(size);
-				file.read((char*)analogs.data(), sizeof(AnalogThing) * size);
+				file.read((char *)recording.data(), sizeof(DemoFrame) * size);
 
 				isrecording = false;
 			}
@@ -150,12 +177,7 @@ void __cdecl SaveGhost(unsigned __int8 a1)
 		// Writes controller data
 		unsigned int size = recording.size();
 		file.write((char *)&size, sizeof(size));
-		file.write((char *)recording.data(), sizeof(ControllerData) * size);
-
-		// Writes analog data
-		size = analogs.size();
-		file.write((char*)&size, sizeof(size));
-		file.write((char*)analogs.data(), sizeof(AnalogThing) * size);
+		file.write((char *)recording.data(), sizeof(DemoFrame) * size);
 
 		file.close();
 	}
