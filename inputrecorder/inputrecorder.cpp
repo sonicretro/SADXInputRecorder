@@ -59,59 +59,49 @@ extern "C"
 				recording.back().duration = elapsed;
 		}
 	}
-}
 
-void OnControl_c()
-{
-	if (!levelstarted || levelcomplete || !GetCharacterObject(0) || IsGamePaused())
-		return;
-
-	if (isrecording)
+	__declspec(dllexport) void OnControl()
 	{
-		DemoFrame i = { 1, *ControllerPointers[0], NormalizedAnalogs[0] };
+		if (!levelstarted || levelcomplete || !GetCharacterObject(0) || IsGamePaused())
+			return;
 
-		if (!recording.empty())
+		if (isrecording)
 		{
-			DemoFrame& last = recording.back();
-			if (!memcmp(&last.controller, &i.controller, sizeof(ControllerData)) && !memcmp(&last.analogThing, &i.analogThing, sizeof(AnalogThing)))
+			DemoFrame i = { 1, *ControllerPointers[0], NormalizedAnalogs[0] };
+
+			if (!recording.empty())
 			{
-				++last.duration;
-				return;
+				DemoFrame& last = recording.back();
+				if (!memcmp(&last.controller, &i.controller, sizeof(ControllerData)) && !memcmp(&last.analogThing, &i.analogThing, sizeof(AnalogThing)))
+				{
+					++last.duration;
+					return;
+				}
 			}
-		}
 
-		recording.push_back(i);
-	}
-	else
-	{
-		// CurrentFrame is incremented in OnInput which happens before OnControl.
-		DemoFrame i = recording[currentframe];
-
-		Controllers[0] = i.controller;
-		NormalizedAnalogs[0] = i.analogThing;
-		duration = i.duration;
-
-		if (++elapsed == duration)
-		{
-			++currentframe;
-			elapsed = 0;
+			recording.push_back(i);
 		}
 		else
 		{
-			PrintDebug("Repeat frame for %5u: %5u/%5u\n", currentframe, elapsed, duration);
+			// CurrentFrame is incremented in OnInput which happens before OnControl.
+			DemoFrame i = recording[currentframe];
+
+			Controllers[0] = i.controller;
+			NormalizedAnalogs[0] = i.analogThing;
+			duration = i.duration;
+
+			if (++elapsed == duration)
+			{
+				++currentframe;
+				elapsed = 0;
+			}
+			else
+			{
+				PrintDebug("Repeat frame for %5u: %5u/%5u\n", currentframe, elapsed, duration);
+			}
 		}
 	}
 }
-
-void __declspec(naked) OnControl_asm()
-{
-	__asm
-	{
-		call OnControl_c
-		ret
-	}
-}
-
 
 #pragma region File I/O
 void LoadGhost()
@@ -211,8 +201,7 @@ PointerInfo jumps[] = {
 	ptrdecl(0x41597B, LoadGhost),
 	ptrdecl(0x44EEE1, Checkpoint),
 	ptrdecl(0x44EE67, Restart),
-	ptrdecl(0x44ED60, ResetGhost),
-	ptrdecl(0x40FF00, OnControl_asm)
+	ptrdecl(0x44ED60, ResetGhost)
 };
 
 PointerInfo calls[] = {
