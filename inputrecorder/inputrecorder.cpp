@@ -1,6 +1,3 @@
-// inputrecorder.cpp : Defines the exported functions for the DLL application.
-//
-
 #include <vector>
 #include <fstream>
 #include <SADXModLoader.h>
@@ -9,8 +6,8 @@ using namespace std;
 
 struct AnalogThing
 {
-	int		angle;
-	float	magnitude;
+	int angle;
+	float magnitude;
 };
 
 struct DemoFrame
@@ -21,21 +18,17 @@ struct DemoFrame
 };
 
 DataArray(AnalogThing, NormalizedAnalogs, 0x03B0E7A0, 8);
-FunctionPointer(void, DisableController, (unsigned __int8), 0x40EFA0);
 
-const unsigned int magic = 'OMED';
+const Uint32 magic = 'OMED';
 
-unsigned int currentframe = 0;
-unsigned int savedframe = 0;
-
-bool levelstarted = false;
-bool levelcomplete = false;
-bool isrecording;
-
-Uint32 elapsed = 0;
-Uint32 duration = 0;
-
-vector<DemoFrame> recording;
+static Uint32 currentframe = 0;
+static Uint32 savedframe = 0;
+static bool levelstarted = false;
+static bool levelcomplete = false;
+static bool isrecording;
+static Uint32 elapsed = 0;
+static Uint32 duration = 0;
+static vector<DemoFrame> recording;
 
 extern "C"
 {
@@ -53,8 +46,11 @@ extern "C"
 		{
 			isrecording = true;
 			recording.resize(currentframe);
+
 			if (duration > 1)
+			{
 				recording.back().duration = elapsed;
+			}
 		}
 	}
 
@@ -120,9 +116,13 @@ void LoadDemo()
 		case LevelIDs_MRGarden:
 		case LevelIDs_ChaoRace:
 			return;
+		
+		default:
+			break;
 	}
+
 	levelstarted = true;
-	if (recording.size() == 0)
+	if (recording.empty())
 	{
 		isrecording = true;
 
@@ -132,11 +132,11 @@ void LoadDemo()
 
 		if (file.is_open())
 		{
-			unsigned int m;
+			Uint32 m;
 			file.read((char *)&m, sizeof(m));
 			if (m == magic)
 			{
-				unsigned int size;
+				Uint32 size;
 				file.read((char *)&size, sizeof(size));
 				recording.resize(size);
 				file.read((char *)recording.data(), sizeof(DemoFrame) * size);
@@ -163,7 +163,7 @@ void __cdecl SaveGhost(unsigned __int8 a1)
 		file.write((char *)&magic, sizeof(magic));
 
 		// Writes controller data
-		unsigned int size = recording.size();
+		Uint32 size = recording.size();
 		file.write((char *)&size, sizeof(size));
 		file.write((char *)recording.data(), sizeof(DemoFrame) * size);
 
@@ -191,7 +191,10 @@ void Checkpoint()
 void Restart()
 {
 	if (isrecording)
+	{
 		recording.resize(savedframe);
+	}
+
 	currentframe = savedframe;
 }
 
@@ -206,4 +209,4 @@ PointerInfo calls[] = {
 	ptrdecl(0x415545, SaveGhost),
 };
 
-extern "C" __declspec(dllexport) ModInfo SADXModInfo = { ModLoaderVer, Init, NULL, 0, arrayptrandlength(jumps), arrayptrandlength(calls) };
+extern "C" __declspec(dllexport) ModInfo SADXModInfo = { ModLoaderVer, Init, nullptr, 0, arrayptrandlength(jumps), arrayptrandlength(calls) };
